@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MALL SURVIVOR</title>
+<style>
+  @font-face {
+    font-family: 'PixelFont';
+    src: local('Courier New');
+  }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #0a0612;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+  }
+  #wrap {
+    position: relative;
+    box-shadow: 0 0 0 6px #1a1030, 0 0 0 10px #ff2a6d, 0 0 40px #ff2a6d88;
+    image-rendering: pixelated;
+  }
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    background: #000;
+  }
+  #hud {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: 10px 14px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    pointer-events: none;
+    color: #fff2d6;
+    text-shadow: 2px 2px 0 #000;
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+  .panel {
+    background: rgba(10,6,18,0.55);
+    border: 2px solid #ff2a6d;
+    padding: 6px 10px;
+  }
+  .bar-bg {
+    width: 160px; height: 12px;
+    background: #2a1830;
+    border: 2px solid #fff2d6;
+    margin-top: 3px;
+  }
+  .bar-fill {
+    height: 100%;
+    background: #29e673;
+    transition: width 0.15s linear;
+  }
+  #monsterBarWrap { display:none; }
+  #banner {
+    position: absolute; top: 40%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 34px; font-weight: bold;
+    color: #ffe45e;
+    text-shadow: 3px 3px 0 #ff2a6d, -2px -2px 0 #1a1030;
+    letter-spacing: 3px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+  #timerRow { color: #ffe45e; font-size: 13px; margin-top: 4px;}
+  #totalCoinsRow { color: #ffe45e; font-size: 12px; margin-top: 4px;}
+  #serverRow { color: #29e673; font-size: 11px; margin-top: 4px;}
+  #help {
+    position: absolute; bottom: 8px; left: 14px;
+    color: #fff2d6cc; font-size: 12px;
+    text-shadow: 1px 1px 0 #000;
+    pointer-events:none;
+  }
+  #startScreen {
+    position: absolute; inset: 0;
+    background: #0a0612ee;
+    color: #fff2d6;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    z-index: 10;
+  }
+  #startScreen h1 {
+    color: #ffe45e;
+    font-size: 40px;
+    text-shadow: 4px 4px 0 #ff2a6d;
+    letter-spacing: 4px;
+    margin-bottom: 6px;
+  }
+  #startScreen p { font-size: 13px; line-height: 1.7; max-width: 460px; }
+  #authBox {
+    margin-top: 18px;
+    border: 2px solid #ffe45e;
+    padding: 14px 18px 10px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  #authLabel {
+    color: #ffe45e;
+    font-size: 15px;
+    letter-spacing: 3px;
+    margin-bottom: 10px;
+  }
+  #authBox input {
+    background: #1a1030;
+    color: #fff2d6;
+    border: 2px solid #fff2d688;
+    padding: 7px 10px;
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-align: center;
+    width: 200px;
+    margin-bottom: 8px;
+  }
+  #authBox input:focus { outline: none; border-color: #ff2a6d; }
+  #authBox input::placeholder { color: #fff2d666; }
+  #loginBtn, #signupBtn, #guestBtn {
+    background: #ff2a6d;
+    color: #fff2d6;
+    border: 3px solid #ffe45e;
+    padding: 8px 20px;
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  #loginBtn:hover, #signupBtn:hover, #guestBtn:hover { background: #ffe45e; color: #1a1030; }
+  #signupBtn { background: #29e673; color: #1a1030; }
+  #signupBtn:hover { background: #ffe45e; }
+  #guestBtn { margin-top: 16px; background: transparent; color: #fff2d6cc; border-color: #fff2d666; }
+  #guestBtn:hover { background: #fff2d622; color: #fff2d6; }
+  #authMsg { font-size: 11px; color: #ff2a6d; margin-top: 6px; min-height: 14px; letter-spacing: 0.5px; }
+  #credit {
+    margin-top: 14px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: #fff2d688;
+  }
+  #playerNameRow { font-size: 11px; color: #fff2d6cc; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="960" height="540"></canvas>
+  <div id="hud">
+    <div class="panel">
+      LEVEL <span id="level">1</span> / 1000
+      <div id="playerNameRow"></div>
+      <div id="timerRow">NEXT MONSTER: <span id="timer">45</span>s</div>
+      <div id="totalCoinsRow">COINS COLLECTED (ALL TIME): <span id="totalCoins">0</span></div>
+      <div id="serverRow">ONLINE</div>
+    </div>
+    <div class="panel" style="text-align:right;">
+      COINS: <span id="coins">0</span>
+      <div class="bar-bg"><div class="bar-fill" id="hpFill" style="width:100%"></div></div>
+      <div style="font-size:11px; margin-top:2px;" id="monsterBarWrap">MONSTER HP
+        <div class="bar-bg"><div class="bar-fill" id="monsterFill" style="width:100%; background:#ff2a6d;"></div></div>
+      </div>
+    </div>
+  </div>
+  <div id="banner"></div>
+  <div id="help">ARROWS/WASD move &nbsp;•&nbsp; SPACE attack when a monster appears</div>
+  <div id="startScreen">
+    <h1>MALL SURVIVOR</h1>
+    <p>Run the halls of the mall collecting coins. Every 45 seconds something wakes up
+    and comes for you. Fight it off with SPACE to level up. Let it catch you, and you
+    level back down. Level 1 is the floor, level 1000 is the ceiling.</p>
+    <div id="authBox">
+      <div id="authLabel">LOGIN</div>
+      <input id="userInput" type="text" maxlength="16" placeholder="Username" autocomplete="username">
+      <input id="passInput" type="password" maxlength="32" placeholder="Password" autocomplete="current-password">
+      <button id="loginBtn">Login</button>
+      <button id="signupBtn">Sign Up</button>
+      <div id="authMsg"></div>
+    </div>
+    <button id="guestBtn">PLAY AS GUEST (no save)</button>
+    <div id="credit">Made By Jack O'Shaughnessy</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  // ---- low-res virtual screen for pixelated look ----
+  const VW = 320, VH = 180;
+  const off = document.createElement('canvas');
+  off.width = VW; off.height = VH;
+  const octx = off.getContext('2d');
+  octx.imageSmoothingEnabled = false;
+
+  // ---- world (the mall) ----
+  const WORLD_W = 2400, WORLD_H = 1400;
+
+  const stores = [
+    {x:80,  y:80,  w:420, h:220, color:'#3a2a55', label:'ARCADE ZONE'},
+    {x:560, y:80,  w:380, h:220, color:'#2a4a55', label:'SNEAKER HUT'},
+    {x:1000,y:80,  w:420, h:220, color:'#553a2a', label:'BURGER BARN'},
+    {x:1500,y:80,  w:420, h:220, color:'#2a5540', label:'TECH ZONE'},
+    {x:1980,y:80,  w:340, h:220, color:'#553a4a', label:'GLAM & CO'},
+    {x:80,  y:1100,w:420, h:220, color:'#404a55', label:'BOOK NOOK'},
+    {x:560, y:1100,w:380, h:220, color:'#554a2a', label:'TOY BOX'},
+    {x:1000,y:1100,w:420, h:220, color:'#2a3a55', label:'CINEMA 8'},
+    {x:1500,y:1100,w:420, h:220, color:'#4a2a55', label:'PET PLACE'},
+    {x:1980,y:1100,w:340, h:220, color:'#2a5555', label:'FOOD COURT'},
+  ];
+  const fountain = {x: WORLD_W/2, y: WORLD_H/2, r: 90};
+  const pillars = [];
+  for(let i=0;i<10;i++){
+    pillars.push({x: 200+i*230, y: 500});
+    pillars.push({x: 200+i*230, y: 780});
+  }
+  const benches = [];
+  for(let i=0;i<8;i++){
+    benches.push({x: 300+i*260, y: 420});
+    benches.push({x: 300+i*260, y: 900});
+  }
+
+  function inStore(x,y){
+    for(const s of stores){
+      if(x > s.x-20 && x < s.x+s.w+20 && y > s.y-20 && y < s.y+s.h+20) return s;
+    }
+    return null;
+  }
+
+  // ---- player ----
+  const player = {
+    x: WORLD_W/2, y: WORLD_H/2 + 220,
+    w: 14, h: 20,
+    speed: 1.6,
+    dir: 'down',
+    animFrame: 0, animTimer: 0,
+    hp: 100, maxHp: 100,
+    attacking: 0,
+    hurtFlash: 0,
+  };
+
+  let level = 1;
+  const MAX_LEVEL = 1000;
+  let coins = 0;
+  let totalCoinsCollected = 0; // never decreases, even across level ups/downs
+  let playerName = 'Adventurer';
+
+  // ---- coins scattered on the walkable floor ----
+  let coinList = [];
+  function spawnCoins(n){
+    coinList = [];
+    let tries = 0;
+    while(coinList.length < n && tries < n*20){
+      tries++;
+      const x = 60 + Math.random()*(WORLD_W-120);
+      const y = 60 + Math.random()*(WORLD_H-120);
+      if(inStore(x,y)) continue;
+      if(Math.hypot(x-fountain.x, y-fountain.y) < fountain.r+30) continue;
+      coinList.push({x,y,taken:false, bob: Math.random()*Math.PI*2});
+    }
+  }
+  spawnCoins(60);
+
+  // ---- multiplayer server config ----
+  // Fill this in once you've deployed server.js (see README) e.g:
+  // The game and multiplayer server live on the same website.
+  // This lets anyone play by visiting your website URL.
+  const SERVER_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
+
+  let socket = null;
+  let myId = null;
+  let multiplayer = false;
+  let otherPlayers = {}; // id -> {x,y,dir,name,level}
+  let lastSentMove = 0;
+  let isGuest = true;
+  let accountUsername = null;
+
+  function connectToServer(){
+    if(!SERVER_URL){
+      document.getElementById('serverRow').textContent = 'ONLINE';
+      return;
+    }
+    document.getElementById('serverRow').textContent = 'CONNECTING...';
+    try{
+      socket = new WebSocket(SERVER_URL);
+    } catch(e){
+      document.getElementById('serverRow').textContent = 'SOLO MODE (connection failed)';
+      return;
+    }
+    socket.onopen = () => {
+      multiplayer = true;
+      socket.send(JSON.stringify({type:'join', name: playerName}));
+    };
+    socket.onmessage = (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch(e){ return; }
+      handleServerMessage(msg);
+    };
+    socket.onclose = () => {
+      multiplayer = false;
+      otherPlayers = {};
+      document.getElementById('serverRow').textContent = 'DISCONNECTED (playing solo)';
+    };
+    socket.onerror = () => {
+      document.getElementById('serverRow').textContent = 'SOLO MODE (connection failed)';
+    };
+  }
+
+  // login / signup: connects, authenticates, then loads saved progress
+  function connectAndAuth(kind, username, password){
+    if(!SERVER_URL){
+      document.getElementById('authMsg').textContent = 'No account server configured yet - try Play as Guest.';
+      return;
+    }
+    document.getElementById('authMsg').textContent = 'Connecting...';
+    try{
+      socket = new WebSocket(SERVER_URL);
+    } catch(e){
+      document.getElementById('authMsg').textContent = 'Could not reach the server.';
+      return;
+    }
+    socket.onopen = () => {
+      multiplayer = true;
+      socket.send(JSON.stringify({type: kind, username, password}));
+    };
+    socket.onmessage = (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch(e){ return; }
+      if(msg.type === 'authResult'){
+        if(msg.ok){
+          isGuest = false;
+          accountUsername = username;
+          playerName = username;
+          level = msg.level;
+          totalCoinsCollected = msg.totalCoinsCollected;
+          beginGame();
+        } else {
+          document.getElementById('authMsg').textContent = msg.message || 'That didn\'t work.';
+          if(socket) socket.close();
+        }
+      } else {
+        handleServerMessage(msg);
+      }
+    };
+    socket.onclose = () => {
+      multiplayer = false;
+      otherPlayers = {};
+      const row = document.getElementById('serverRow');
+      if(row) row.textContent = 'DISCONNECTED';
+    };
+    socket.onerror = () => {
+      document.getElementById('authMsg').textContent = 'Connection failed.';
+    };
+  }
+
+  // periodically (and on key moments) push level/coins to the server for a logged-in account
+  function saveProgress(){
+    if(!isGuest && socket && socket.readyState === WebSocket.OPEN){
+      socket.send(JSON.stringify({type:'save', level, totalCoinsCollected}));
+    }
+  }
+  setInterval(saveProgress, 8000);
+  window.addEventListener('beforeunload', saveProgress);
+
+  function beginGame(){
+    document.getElementById('playerNameRow').textContent = playerName + (isGuest ? ' (guest - not saved)' : '');
+    document.getElementById('startScreen').style.display = 'none';
+    updateHud();
+    lastTime = performance.now();
+    requestAnimationFrame(loop);
+  }
+
+  function handleServerMessage(msg){
+    if(msg.type === 'welcome'){
+      myId = msg.id;
+      document.getElementById('serverRow').textContent = 'ONLINE: ' + msg.roomId;
+      monster = msg.monster;
+      monsterTimer = msg.monsterTimer;
+      document.getElementById('monsterBarWrap').style.display = monster ? 'block' : 'none';
+    } else if(msg.type === 'state'){
+      otherPlayers = {};
+      let onlineCount = 0;
+      for(const p of msg.players){
+        onlineCount++;
+        if(p.id === myId){
+          level = p.level;
+          player.hp = p.hp;
+        } else {
+          otherPlayers[p.id] = p;
+        }
+      }
+      document.getElementById('serverRow').textContent = 'ONLINE: ' + onlineCount + '/20 players';
+      monster = msg.monster;
+      monsterTimer = msg.monsterTimer;
+      document.getElementById('monsterBarWrap').style.display = monster ? 'block' : 'none';
+      updateHud();
+    } else if(msg.type === 'monsterSpawn'){
+      monster = msg.monster;
+      document.getElementById('monsterBarWrap').style.display = 'block';
+      showBanner('A MONSTER APPEARS!', '#ff2a6d');
+    } else if(msg.type === 'monsterEnd'){
+      monster = null;
+      document.getElementById('monsterBarWrap').style.display = 'none';
+      if(msg.result === 'killed'){ showBanner('MONSTER DEFEATED!', '#29e673'); saveProgress(); }
+      else showBanner('THE MONSTER FLED...', '#ffe45e');
+    } else if(msg.type === 'playerEaten'){
+      if(msg.id === myId){
+        level = msg.level;
+        player.hp = player.maxHp;
+        showBanner('EATEN... LEVEL DOWN', '#ff2a6d');
+        saveProgress();
+      }
+      updateHud();
+    }
+  }
+
+
+  let monster = null; // {x,y,hp,maxHp,speed}
+  let monsterTimer = 45; // seconds until next spawn
+  const MONSTER_STAY_TIME = 45; // seconds the monster sticks around before giving up
+  let lastTime = performance.now();
+
+  function spawnMonster(){
+    const angle = Math.random()*Math.PI*2;
+    const dist = 140;
+    monster = {
+      x: player.x + Math.cos(angle)*dist,
+      y: player.y + Math.sin(angle)*dist,
+      hp: 40 + level*0.6,
+      maxHp: 40 + level*0.6,
+      speed: 0.75 + Math.min(level,200)*0.004,
+      hitCooldown: 0,
+      flash: 0,
+      age: 0,
+    };
+    document.getElementById('monsterBarWrap').style.display = 'block';
+    showBanner('A MONSTER APPEARS!', '#ff2a6d');
+  }
+
+  function endEncounter(survived){
+    if(survived){
+      level = Math.min(MAX_LEVEL, level+1);
+      showBanner('LEVEL UP! '+level, '#29e673');
+    } else {
+      level = Math.max(1, level-1);
+      player.hp = player.maxHp;
+      showBanner('EATEN... LEVEL DOWN', '#ff2a6d');
+    }
+    monster = null;
+    monsterTimer = 45;
+    document.getElementById('monsterBarWrap').style.display = 'none';
+    updateHud();
+    saveProgress();
+  }
+
+  function fleeEncounter(){
+    monster = null;
+    monsterTimer = 45;
+    document.getElementById('monsterBarWrap').style.display = 'none';
+    showBanner('THE MONSTER FLED...', '#ffe45e');
+  }
+
+  let bannerTimeout = null;
+  function showBanner(text, color){
+    const el = document.getElementById('banner');
+    el.textContent = text;
+    el.style.color = color;
+    el.style.opacity = '1';
+    clearTimeout(bannerTimeout);
+    bannerTimeout = setTimeout(()=>{ el.style.opacity = '0'; }, 1600);
+  }
+
+  // ---- input ----
+  const keys = {};
+  window.addEventListener('keydown', e=>{
+    keys[e.key.toLowerCase()] = true;
+    if(e.key === ' ') { e.preventDefault(); tryAttack(); }
+  });
+  window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
+
+  function tryAttack(){
+    if(player.attacking > 0) return;
+    player.attacking = 12; // frames
+    if(multiplayer){
+      if(socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({type:'attack'}));
+      return;
+    }
+    if(monster){
+      const d = Math.hypot(monster.x-player.x, monster.y-player.y);
+      if(d < 34){
+        monster.hp -= 14;
+        monster.flash = 8;
+        if(monster.hp <= 0){ endEncounter(true); }
+      }
+    }
+  }
+
+  function updateHud(){
+    document.getElementById('level').textContent = level;
+    document.getElementById('coins').textContent = coins;
+    document.getElementById('totalCoins').textContent = totalCoinsCollected;
+  }
+
+  // ---- main update ----
+  function update(dt){
+    // movement
+    let mx=0,my=0;
+    if(keys['arrowup']||keys['w']) my -= 1;
+    if(keys['arrowdown']||keys['s']) my += 1;
+    if(keys['arrowleft']||keys['a']) mx -= 1;
+    if(keys['arrowright']||keys['d']) mx += 1;
+    if(mx!==0||my!==0){
+      const len = Math.hypot(mx,my);
+      mx/=len; my/=len;
+      player.x = Math.max(20, Math.min(WORLD_W-20, player.x + mx*player.speed*dt*60));
+      player.y = Math.max(20, Math.min(WORLD_H-20, player.y + my*player.speed*dt*60));
+      if(Math.abs(mx) > Math.abs(my)) player.dir = mx>0 ? 'right':'left';
+      else player.dir = my>0 ? 'down':'up';
+      player.animTimer += dt;
+      if(player.animTimer > 0.12){ player.animTimer=0; player.animFrame = (player.animFrame+1)%4; }
+    } else {
+      player.animFrame = 0;
+    }
+    if(player.attacking>0) player.attacking--;
+    if(player.hurtFlash>0) player.hurtFlash--;
+
+    // slow hp regen when no monster (solo mode only - server handles hp in multiplayer)
+    if(!multiplayer && !monster && player.hp < player.maxHp){
+      player.hp = Math.min(player.maxHp, player.hp + dt*3);
+    }
+
+    // coins
+    for(const c of coinList){
+      if(!c.taken && Math.hypot(c.x-player.x, c.y-player.y) < 16){
+        c.taken = true;
+        coins++;
+        totalCoinsCollected++;
+      }
+    }
+    if(coinList.every(c=>c.taken)){
+      spawnCoins(60);
+      saveProgress();
+    }
+
+    // monster countdown / AI - server-driven in multiplayer, local otherwise
+    if(!multiplayer){
+      if(!monster){
+        monsterTimer -= dt;
+        if(monsterTimer <= 0) spawnMonster();
+      } else {
+        const dx = player.x - monster.x, dy = player.y - monster.y;
+        const d = Math.hypot(dx,dy) || 1;
+        monster.x += (dx/d)*monster.speed*dt*60;
+        monster.y += (dy/d)*monster.speed*dt*60;
+        if(monster.flash>0) monster.flash--;
+        if(monster.hitCooldown>0) monster.hitCooldown--;
+        monster.age += dt;
+        if(d < 20 && monster.hitCooldown<=0){
+          player.hp -= 10;
+          player.hurtFlash = 10;
+          monster.hitCooldown = 45;
+          if(player.hp <= 0){ endEncounter(false); }
+        }
+        if(monster && monster.age >= MONSTER_STAY_TIME){
+          fleeEncounter();
+        }
+      }
+    } else {
+      // send our position to the server a few times a second
+      lastSentMove += dt;
+      if(lastSentMove > 0.08 && socket && socket.readyState === WebSocket.OPEN){
+        lastSentMove = 0;
+        socket.send(JSON.stringify({type:'move', x: player.x, y: player.y, dir: player.dir}));
+      }
+    }
+
+    document.getElementById('hpFill').style.width = Math.max(0,(player.hp/player.maxHp*100))+'%';
+    if(monster){
+      document.getElementById('monsterFill').style.width = Math.max(0,(monster.hp/monster.maxHp*100))+'%';
+      document.getElementById('timer').textContent = '--';
+    } else {
+      document.getElementById('timer').textContent = Math.ceil(monsterTimer);
+    }
+    document.getElementById('coins').textContent = coins;
+    document.getElementById('totalCoins').textContent = totalCoinsCollected;
+  }
+
+  // ---- drawing (pixel art, low-res canvas) ----
+  function drawFloorTile(x,y,size,c1,c2){
+    octx.fillStyle = ((Math.floor(x/size)+Math.floor(y/size))%2===0) ? c1 : c2;
+    octx.fillRect(x,y,size,size);
+  }
+
+  function drawPlayer(px,py){
+    const walkBob = (player.animFrame===1||player.animFrame===3) ? 1 : 0;
+    const bodyColor = '#3a6fd8';
+    const skin = '#f2c79b';
+    const hair = '#2a1810';
+    const x = Math.round(px), y = Math.round(py) - walkBob;
+    // shadow
+    octx.fillStyle = 'rgba(0,0,0,0.35)';
+    octx.fillRect(x-6, y+9, 12, 3);
+    // legs
+    octx.fillStyle = '#22345c';
+    if(player.animFrame%2===0){
+      octx.fillRect(x-5, y+4, 4, 6);
+      octx.fillRect(x+1, y+4, 4, 6);
+    } else {
+      octx.fillRect(x-6, y+4, 4, 5);
+      octx.fillRect(x+2, y+5, 4, 5);
+    }
+    // body
+    octx.fillStyle = (player.hurtFlash>0 && player.hurtFlash%4<2) ? '#ff2a6d' : bodyColor;
+    octx.fillRect(x-5, y-4, 10, 9);
+    // arms - just shift them outward on a punch, no extra blob
+    octx.fillStyle = skin;
+    let leftArm = {ax:x-7, ay:y-2, aw:3, ah:5};
+    let rightArm = {ax:x+4, ay:y-2, aw:3, ah:5};
+    if(player.attacking>0){
+      if(player.dir==='right'){ rightArm = {ax:x+9, ay:y-3, aw:4, ah:4}; }
+      else if(player.dir==='left'){ leftArm = {ax:x-11, ay:y-3, aw:4, ah:4}; }
+      else if(player.dir==='up'){
+        leftArm = {ax:x-7, ay:y-6, aw:3, ah:5};
+        rightArm = {ax:x+4, ay:y-6, aw:3, ah:5};
+      } else {
+        leftArm = {ax:x-7, ay:y+1, aw:3, ah:5};
+        rightArm = {ax:x+4, ay:y+1, aw:3, ah:5};
+      }
+    }
+    octx.fillRect(leftArm.ax, leftArm.ay, leftArm.aw, leftArm.ah);
+    octx.fillRect(rightArm.ax, rightArm.ay, rightArm.aw, rightArm.ah);
+    // head
+    octx.fillStyle = skin;
+    octx.fillRect(x-4, y-11, 8, 7);
+    octx.fillStyle = hair;
+    if(player.dir==='up'){
+      octx.fillRect(x-4, y-12, 8,4);
+    } else {
+      octx.fillRect(x-4, y-12, 8,3);
+      octx.fillStyle = '#111';
+      if(player.dir==='left') octx.fillRect(x-4,y-9,2,2);
+      else if(player.dir==='right') octx.fillRect(x+2,y-9,2,2);
+      else { octx.fillRect(x-3,y-9,2,2); octx.fillRect(x+1,y-9,2,2); }
+    }
+  }
+
+  function drawMonster(m){
+    const x = Math.round(m.x), y = Math.round(m.y);
+    octx.fillStyle = 'rgba(0,0,0,0.35)';
+    octx.fillRect(x-8, y+10, 16, 3);
+    const c = (m.flash>0 && m.flash%2===0) ? '#ffffff' : '#7a1030';
+    octx.fillStyle = c;
+    octx.fillRect(x-8, y-6, 16, 14);
+    octx.fillRect(x-10, y-2, 4, 8);
+    octx.fillRect(x+6, y-2, 4, 8);
+    // spikes
+    octx.fillStyle = '#ff2a6d';
+    octx.fillRect(x-6, y-10, 3,5);
+    octx.fillRect(x-1, y-12, 3,6);
+    octx.fillRect(x+4, y-10, 3,5);
+    // eyes
+    octx.fillStyle = '#ffe45e';
+    octx.fillRect(x-5, y-2, 3,3);
+    octx.fillRect(x+2, y-2, 3,3);
+  }
+
+  function drawOtherPlayer(px,py,dir,name){
+    const bodyColor = '#d84a4a';
+    const skin = '#f2c79b';
+    const x = Math.round(px), y = Math.round(py);
+    octx.fillStyle = 'rgba(0,0,0,0.35)';
+    octx.fillRect(x-6, y+9, 12, 3);
+    octx.fillStyle = '#5c2222';
+    octx.fillRect(x-5, y+4, 4, 6);
+    octx.fillRect(x+1, y+4, 4, 6);
+    octx.fillStyle = bodyColor;
+    octx.fillRect(x-5, y-4, 10, 9);
+    octx.fillStyle = skin;
+    octx.fillRect(x-7, y-2, 3,5);
+    octx.fillRect(x+4, y-2, 3,5);
+    octx.fillRect(x-4, y-11, 8, 7);
+    octx.fillStyle = '#111';
+    octx.fillRect(x-4, y-12, 8,3);
+    octx.fillStyle = '#ffe45e';
+    octx.font = '7px monospace';
+    octx.textAlign = 'center';
+    octx.fillText(name, x, y-16);
+    octx.textAlign = 'left';
+  }
+
+  function render(){
+    // camera centered on player, clamped to world
+    let camX = player.x - VW/2;
+    let camY = player.y - VH/2;
+    camX = Math.max(0, Math.min(WORLD_W-VW, camX));
+    camY = Math.max(0, Math.min(WORLD_H-VH, camY));
+
+    // floor
+    octx.fillStyle = '#1c1428';
+    octx.fillRect(0,0,VW,VH);
+    const tile = 20;
+    const startX = Math.floor(camX/tile)*tile;
+    const startY = Math.floor(camY/tile)*tile;
+    for(let x=startX; x<camX+VW+tile; x+=tile){
+      for(let y=startY; y<camY+VH+tile; y+=tile){
+        drawFloorTile(x-camX, y-camY, tile, '#241a34', '#2a2040');
+      }
+    }
+
+    // fountain
+    octx.save();
+    octx.beginPath();
+    octx.fillStyle = '#1a3a5c';
+    octx.fillRect(fountain.x-fountain.r-camX, fountain.y-fountain.r-camY, fountain.r*2, fountain.r*2);
+    octx.fillStyle = '#2a6ca8';
+    octx.fillRect(fountain.x-fountain.r*0.6-camX, fountain.y-fountain.r*0.6-camY, fountain.r*1.2, fountain.r*1.2);
+    octx.restore();
+
+    // pillars
+    octx.fillStyle = '#4a4058';
+    for(const p of pillars){
+      octx.fillRect(p.x-8-camX, p.y-8-camY, 16,16);
+    }
+    // benches
+    octx.fillStyle = '#5a4030';
+    for(const b of benches){
+      octx.fillRect(b.x-14-camX, b.y-4-camY, 28,8);
+    }
+
+    // stores
+    for(const s of stores){
+      octx.fillStyle = s.color;
+      octx.fillRect(s.x-camX, s.y-camY, s.w, s.h);
+      octx.fillStyle = '#000000aa';
+      octx.fillRect(s.x-camX, s.y-camY, s.w, 6);
+      octx.fillStyle = '#ffe45e';
+      octx.font = '8px monospace';
+      octx.fillText(s.label, s.x-camX+6, s.y-camY+18);
+      // storefront glass
+      octx.fillStyle = 'rgba(180,220,255,0.15)';
+      octx.fillRect(s.x-camX+10, s.y-camY+26, s.w-20, s.h-40);
+    }
+
+    // coins
+    for(const c of coinList){
+      if(c.taken) continue;
+      const bob = Math.sin(performance.now()/220 + c.bob)*2;
+      const cx = c.x-camX, cy = c.y-camY+bob;
+      if(cx<-10||cx>VW+10||cy<-10||cy>VH+10) continue;
+      octx.fillStyle = '#ffe45e';
+      octx.fillRect(cx-3, cy-3, 6,6);
+      octx.fillStyle = '#a8790a';
+      octx.fillRect(cx-3, cy+2, 6,1);
+    }
+
+    // other players
+    if(multiplayer){
+      for(const id in otherPlayers){
+        const p = otherPlayers[id];
+        const ox = p.x-camX, oy = p.y-camY;
+        if(ox<-20||ox>VW+20||oy<-20||oy>VH+20) continue;
+        drawOtherPlayer(ox, oy, p.dir, p.name || 'Player');
+      }
+    }
+
+    // monster
+    if(monster) drawMonster({x:monster.x-camX, y:monster.y-camY, flash:monster.flash});
+
+    // player
+    drawPlayer(player.x-camX, player.y-camY);
+
+    // vignette
+    octx.strokeStyle = 'rgba(0,0,0,0.4)';
+
+    // upscale to visible canvas
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+    ctx.drawImage(off, 0,0, canvas.width, canvas.height);
+  }
+
+  function loop(now){
+    const dt = Math.min(0.05,(now-lastTime)/1000);
+    lastTime = now;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  document.getElementById('guestBtn').addEventListener('click', ()=>{
+    const typed = document.getElementById('userInput').value.trim();
+    playerName = typed || 'Adventurer';
+    isGuest = true;
+    accountUsername = null;
+    if(SERVER_URL) connectToServer();
+    beginGame();
+  });
+  document.getElementById('loginBtn').addEventListener('click', ()=>{
+    const u = document.getElementById('userInput').value.trim();
+    const p = document.getElementById('passInput').value;
+    if(!u || !p){ document.getElementById('authMsg').textContent = 'Enter a username and password.'; return; }
+    connectAndAuth('login', u, p);
+  });
+  document.getElementById('signupBtn').addEventListener('click', ()=>{
+    const u = document.getElementById('userInput').value.trim();
+    const p = document.getElementById('passInput').value;
+    if(!u || !p){ document.getElementById('authMsg').textContent = 'Enter a username and password.'; return; }
+    connectAndAuth('signup', u, p);
+  });
+  document.getElementById('passInput').addEventListener('keydown', e=>{
+    if(e.key === 'Enter') document.getElementById('loginBtn').click();
+  });
+
+  updateHud();
+})();
+</script>
+</body>
+</html>
